@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const fs = require('fs');
+const axios = require('axios');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const templates = JSON.parse(fs.readFileSync('templates.json', 'utf-8'));
@@ -12,15 +13,48 @@ function findAnswer(msg) {
       return t.value;
     }
   }
-  return "Кешіріңіз, бұл сұраққа дайын жауап табылмады.";
+  return null; // егер табылмаса
 }
 
-bot.start((ctx) => ctx.reply("Сәлем! Университет туралы сұрағыңызды жазыңыз."));
-bot.help((ctx) => ctx.reply("Қандай құжаттар, гранттар, шекті балл туралы сұраңыз."));
-bot.on('text', (ctx) => {
-  const answer = findAnswer(ctx.message.text);
-  ctx.reply(answer);
+async function askGPT(question) {
+  const res = await axios.post(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'Сен университет туралы ақпарат беретін көмекші ботсың.' },
+        { role: 'user', content: question }
+      ]
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+  return res.data.choices[0].message.content.trim();
+}
+
+bot.start((ctx) => ctx.reply("Сәлем! Мен университет туралы сұрақтарға жауап берем."));
+bot.help((ctx) => ctx.reply("Сұрақ қой: Құжаттар қандай? Грант бар ма? т.с.с."));
+bot.on('text', async (ctx) => {
+  const userText = ctx.message.text;
+  const answer = findAnswer(userText);
+
+  if (answer) {
+    ctx.reply(answer);
+  } else {
+    ctx.reply("Жауап іздеп жатырмын...");
+    try {
+      const aiAnswer = await askGPT(userText);
+      ctx.reply(aiAnswer);
+    } catch (err) {
+      ctx.reply("Кешіріңіз, GPT арқылы жауап ала алмадым.");
+      console.error(err);
+    }
+  }
 });
 
 bot.launch();
-console.log("✅ Telegram бот іске қосылды");
+console.log("✅ Telegram AI-бот іске қосылды");
