@@ -45,7 +45,7 @@ bot.on('text', async (ctx) => {
   if (answer) {
     ctx.reply(answer);
   } else {
-    ctx.reply("Жауап іздеп жатырмын...");
+    ctx.reply("Жауап іздеп жатырмын.....");
     try {
       const aiAnswer = await askGPT(userText);
       ctx.reply(aiAnswer);
