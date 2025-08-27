@@ -50,7 +50,7 @@ bot.on('text', async (ctx) => {
       const aiAnswer = await askGPT(userText);
       ctx.reply(aiAnswer);
     } catch (err) {
-      ctx.reply("Я не могу ответить на этот вопрос, так как он не содержит конкретной информации о НАО "Atyrau". Пожалуйста, перефразируйте свой вопрос или предоставьте больше деталей.");
+      ctx.reply("й вопрос или предоставьте больше деталей.");
       console.error(err);
     }
   }
