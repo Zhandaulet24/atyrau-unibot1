@@ -50,7 +50,7 @@ bot.on('text', async (ctx) => {
       const aiAnswer = await askGPT(userText);
       ctx.reply(aiAnswer);
     } catch (err) {
-      ctx.reply("Пожалуйста, перефразируйте свой вопрос или предоставьте больше деталей");
+      ctx.reply("Пожалуйста, ");
       console.error(err);
     }
   }
