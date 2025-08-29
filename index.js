@@ -45,12 +45,12 @@ bot.on('text', async (ctx) => {
   if (answer) {
     ctx.reply(answer);
   } else {
-    ctx.reply("Я не могу ответить на этот вопрос");
+    ctx.reply("Я не могу ответить на этот вопрос, так как он не содержит конкретной информации о НАО 'Атырауский университет имени Халела Досмухамедова'");
     try {
       const aiAnswer = await askGPT(userText);
       ctx.reply(aiAnswer);
     } catch (err) {
-      ctx.reply("Пожалуйста, ");
+      ctx.reply("Пожалуйста, перефразируйте свой вопрос или предоставьте больше деталей");
       console.error(err);
     }
   }
