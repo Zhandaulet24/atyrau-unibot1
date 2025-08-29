@@ -45,7 +45,7 @@ bot.on('text', async (ctx) => {
   if (answer) {
     ctx.reply(answer);
   } else {
-    ctx.reply("Я не могу ответить на этот вопрос, так как он не содержит конкретной".");
+    ctx.reply("Я не могу ответить на этот вопрос".");
     try {
       const aiAnswer = await askGPT(userText);
       ctx.reply(aiAnswer);
