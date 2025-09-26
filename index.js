@@ -59,29 +59,33 @@
 // bot.launch();
 // console.log("✅ Telegram AI-бот іске қосылды");
 
-
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const fs = require('fs');
-const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const KNOWLEDGE_FILE = 'system.txt';
 
+if (!BOT_TOKEN || !GEMINI_API_KEY) {
+    console.error("Қате: BOT_TOKEN немесе GEMINI_API_KEY .env файлында көрсетілмеген.");
+    process.exit(1);
+}
+
 const bot = new Telegraf(BOT_TOKEN);
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 let knowledgeBase = '';
 try {
     knowledgeBase = fs.readFileSync(KNOWLEDGE_FILE, 'utf-8');
-    console.log(`✅ '${KNOWLEDGE_FILE}' файлынан база знаний сәтті оқылды.`);
 } catch (error) {
-    console.error(`Қате: '${KNOWLEDGE_FILE}' файлын оқу мүмкін болмады. Файлдың бар екеніне көз жеткізіңіз.`);
+    console.error(`Қате: '${KNOWLEDGE_FILE}' файлын оқу мүмкін болмады.`);
     process.exit(1);
 }
 
-async function askGPT(question) {
+async function askGemini(question) {
     const systemPrompt = `
 Сен — Халел Досмұхамедов атындағы Атырау университетінің студенттеріне көмектесетін AI-ассистентсің.
 Сенің міндетің — тек қана төменде берілген база знаний негізінде жауап беру.
@@ -94,26 +98,21 @@ ${knowledgeBase}
 `;
 
     try {
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: question }
-                ]
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
             },
-            {
-                headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        return response.data.choices[0].message.content.trim();
+        });
+
+        const result = await model.generateContent(question);
+        const response = await result.response;
+        const text = response.text();
+        return text.trim();
+
     } catch (error) {
-        console.error("OpenAI API қатесі:", error.response ? error.response.data : error.message);
-        throw new Error("OpenAI API-мен байланысу кезінде қате пайда болды.");
+        console.error("Gemini API қатесі:", error);
+        throw new Error("Gemini API-мен байланысу кезінде қате пайда болды.");
     }
 }
 
@@ -121,14 +120,14 @@ ${knowledgeBase}
 bot.start((ctx) => ctx.reply("Сәлем! Мен Халел Досмұхамедов атындағы Атырау университеті туралы сұрақтарыңызға жауап беруге дайынмын."));
 
 bot.help((ctx) => ctx.reply("Маған кез келген сұрақты қойыңыз, мысалы: 'Грантқа түсу үшін не істеу керек?' немесе 'Platonus-тан парольді қалай аламын?'."));
-
 bot.on('text', async (ctx) => {
     const userText = ctx.message.text;
     console.log(`[${new Date().toLocaleTimeString()}] Жаңа сұрақ: "${userText}"`);
+
     const thinkingMessage = await ctx.reply("Ойланудамын, сәл күте тұрыңыз... 🧠");
 
     try {
-        const aiAnswer = await askGPT(userText);
+        const aiAnswer = await askGemini(userText);
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             thinkingMessage.message_id,
@@ -146,4 +145,6 @@ bot.on('text', async (ctx) => {
 });
 
 bot.launch();
-console.log("✅ Telegram AI-бот жаңа база знаниймен іске қосылды!");
+console.log("✅ Telegram AI-бот (Gemini SDK) жаңа база знаниймен іске қосылды!");
+
+
