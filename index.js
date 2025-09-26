@@ -59,11 +59,13 @@
 // bot.launch();
 // console.log("✅ Telegram AI-бот іске қосылды");
 
+
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 
+// --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const KNOWLEDGE_FILE = 'system.txt';
@@ -75,15 +77,15 @@ if (!BOT_TOKEN || !GEMINI_API_KEY) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
 let knowledgeBase = '';
 try {
     knowledgeBase = fs.readFileSync(KNOWLEDGE_FILE, 'utf-8');
+    console.log(`✅ '${KNOWLEDGE_FILE}' файлынан база знаний сәтті оқылды.`);
 } catch (error) {
-    console.error(`Қате: '${KNOWLEDGE_FILE}' файлын оқу мүмкін болмады.`);
+    console.error(`Қате: '${KNOWLEDGE_FILE}' файлын оқу мүмкін болмады. Файлдың бар екеніне көз жеткізіңіз.`);
     process.exit(1);
 }
+
 
 async function askGemini(question) {
     const systemPrompt = `
@@ -97,29 +99,41 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+
+    const payload = {
+        contents: [{
+            parts: [{ text: question }]
+        }],
+        systemInstruction: {
+            parts: [{ text: systemPrompt }]
+        }
+    };
+
     try {
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            systemInstruction: {
-                parts: [{ text: systemPrompt }]
-            },
+        const response = await axios.post(API_URL, payload, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
 
-        const result = await model.generateContent(question);
-        const response = await result.response;
-        const text = response.text();
-        return text.trim();
+        if (response.data.candidates && response.data.candidates.length > 0) {
+            const content = response.data.candidates[0].content;
+            if (content && content.parts && content.parts.length > 0) {
+                return content.parts[0].text.trim();
+            }
+        }
+        throw new Error("API жауабында мазмұн табылмады.");
 
     } catch (error) {
-        console.error("Gemini API қатесі:", error);
+        console.error("Gemini API қатесі:", error.response ? error.response.data : error.message);
         throw new Error("Gemini API-мен байланысу кезінде қате пайда болды.");
     }
 }
 
-
 bot.start((ctx) => ctx.reply("Сәлем! Мен Халел Досмұхамедов атындағы Атырау университеті туралы сұрақтарыңызға жауап беруге дайынмын."));
-
 bot.help((ctx) => ctx.reply("Маған кез келген сұрақты қойыңыз, мысалы: 'Грантқа түсу үшін не істеу керек?' немесе 'Platonus-тан парольді қалай аламын?'."));
+
 bot.on('text', async (ctx) => {
     const userText = ctx.message.text;
     console.log(`[${new Date().toLocaleTimeString()}] Жаңа сұрақ: "${userText}"`);
@@ -145,6 +159,4 @@ bot.on('text', async (ctx) => {
 });
 
 bot.launch();
-console.log("✅ Telegram AI-бот (Gemini SDK) жаңа база знаниймен іске қосылды!");
-
-
+console.log("✅ Telegram AI-бот (Axios) жаңа база знаниймен іске қосылды!");
