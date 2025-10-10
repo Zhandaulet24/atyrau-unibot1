@@ -99,7 +99,8 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    // const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/learnlm-2.0-flash-experimental:streamGenerateContent?key=${GEMINI_API_KEY}`;
 
     const payload = {
         contents: [{
