@@ -104,7 +104,7 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?key=${GEMINI_API_KEY}`;
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:streamGenerateContent?key=${GEMINI_API_KEY}`;
     const payload = {
         contents: [{ parts: [{ text: question }] }],
         systemInstruction: { parts: [{ text: systemPrompt }] }
