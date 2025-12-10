@@ -59,7 +59,6 @@
 // bot.launch();
 // console.log("✅ Telegram AI-бот іске қосылды");
 
-
 require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
@@ -67,11 +66,15 @@ const axios = require('axios');
 
 // --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
 const KNOWLEDGE_FILE = 'system.txt';
 
-if (!BOT_TOKEN || !GEMINI_API_KEY) {
-    console.error("Қате: BOT_TOKEN немесе GEMINI_API_KEY .env файлында көрсетілмеген.");
+// --- Тұрақтылар ---
+const SITE_URL = 'https://asu.edu.kz'; 
+const APP_NAME = 'Atyrau University AI Bot'; 
+
+if (!BOT_TOKEN || !OPENROUTER_API_KEY) {
+    console.error("Қате: BOT_TOKEN немесе OPENROUTER_API_KEY .env файлында көрсетілмеген.");
     process.exit(1);
 }
 
@@ -91,8 +94,8 @@ try {
     process.exit(1);
 }
 
-// --- Gemini API ---
-async function askGemini(question, lang = 'kk') {
+// --- OpenRouter API (Gemini арқылы) ---
+async function askOpenRouter(question, lang = 'kk') {
     const systemPrompt = `
 Сен — Халел Досмұхамедов атындағы Атырау университетінің студенттеріне көмектесетін AI-ассистентсің.
 Сен тек төменде берілген база знаний негізінде жауап бер.
@@ -104,24 +107,41 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+    
+    // OpenRouter (OpenAI Compatible) Payload
     const payload = {
-        contents: [{ parts: [{ text: question }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] }
+        model: "google/gemini-2.0-flash-exp:free", // Модель атауы
+        messages: [
+            {
+                role: "system",
+                content: systemPrompt
+            },
+            {
+                role: "user",
+                content: question
+            }
+        ],
+        temperature: 0.3, 
     };
 
     try {
         const response = await axios.post(API_URL, payload, {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': SITE_URL, 
+                'X-Title': APP_NAME,     
+            }
         });
 
-        if (response.data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            return response.data.candidates[0].content.parts[0].text.trim();
+        if (response.data.choices && response.data.choices.length > 0) {
+            return response.data.choices[0].message.content.trim();
         }
         throw new Error("API жауабында мазмұн табылмады.");
     } catch (error) {
-        console.error("Gemini API қатесі:", error.response ? error.response.data : error.message);
-        throw new Error("Gemini API-мен байланысу кезінде қате пайда болды.");
+        console.error("OpenRouter API қатесі:", error.response ? error.response.data : error.message);
+        throw new Error("AI қызметімен байланысу кезінде қате пайда болды.");
     }
 }
 
@@ -255,22 +275,23 @@ bot.on('text', async (ctx) => {
         const waitMsg = await ctx.reply(lang === 'kk' ? "Ойланудамын... 🧠" : lang === 'ru' ? "Думаю... 🧠" : "Thinking... 🧠");
 
         try {
-            const answer = await askGemini(text, lang);
+            const answer = await askOpenRouter(text, lang);
             await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, null, answer);
-        } catch {
+        } catch (error) {
+            console.error(error); // Қатені сервер консоліне шығару
             await ctx.telegram.editMessageText(
                 ctx.chat.id,
                 waitMsg.message_id,
                 null,
                 lang === 'kk'
-                    ? "Кешіріңіз, қате пайда болды. Кейінірек қайталап көріңіз 🙏"
+                    ? "Кешіріңіз, жүйеде қате пайда болды. Кейінірек қайталап көріңіз 🙏"
                     : lang === 'ru'
-                    ? "Извините, произошла ошибка. Попробуйте позже 🙏"
-                    : "Sorry, an error occurred. Please try again later 🙏"
+                    ? "Извините, произошла системная ошибка. Попробуйте позже 🙏"
+                    : "Sorry, a system error occurred. Please try again later 🙏"
             );
         }
     }
 });
 
 bot.launch();
-console.log("✅ Telegram AI-бот мәзірмен, тіл таңдаумен және барлық командалармен іске қосылды!");
+console.log("✅ Telegram AI-бот OpenRouter арқылы іске қосылды!");
