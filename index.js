@@ -1,8 +1,7 @@
 require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
-// Импортируем новый пакет @google/genai
-const { GenAI } = require('@google/genai');
+const axios = require('axios'); // Используем axios для REST запросов
 
 // --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -11,6 +10,7 @@ const KNOWLEDGE_FILE = 'system.txt';
 
 // --- Константы ---
 const APP_NAME = 'Atyrau University AI Bot'; 
+const MODEL_NAME = 'gemini-2.0-flash'; 
 
 if (!BOT_TOKEN || !GEMINI_API_KEY) {
     console.error("Қате: BOT_TOKEN немесе GEMINI_API_KEY .env файлында көрсетілмеген.");
@@ -18,9 +18,6 @@ if (!BOT_TOKEN || !GEMINI_API_KEY) {
 }
 
 const bot = new Telegraf(BOT_TOKEN);
-
-// --- Инициализация Google AI ---
-const client = new GenAI({ apiKey: GEMINI_API_KEY });
 
 // --- Пайдаланушы тілі мен контекстін сақтау ---
 const userLanguage = new Map();
@@ -36,7 +33,7 @@ try {
     process.exit(1);
 }
 
-// --- AI Функция (пакет @google/genai) ---
+// --- AI Функция ---
 async function askGemini(question, lang = 'kk') {
     // Формируем системную инструкцию
     const systemInstructionText = `
@@ -50,29 +47,42 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
+
+    const payload = {
+        // Системная инструкция
+        systemInstruction: {
+            parts: [{ text: systemInstructionText }]
+        },
+        // Сообщение пользователя
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: question }]
+            }
+        ],
+        generationConfig: {
+            temperature: 0.3
+        }
+    };
+
     try {
-        const response = await client.models.generateContent({
-            model: "gemini-2.0-flash",
-            config: {
-                systemInstruction: {
-                    parts: [{ text: systemInstructionText }]
-                },
-                temperature: 0.3,
-            },
-            contents: [
-                {
-                    role: "user",
-                    parts: [
-                        { text: question }
-                    ]
-                }
-            ]
+        const response = await axios.post(url, payload, {
+            headers: {
+                'Content-Type': 'application/json'
+                'x-goog-api-key': ${GEMINI_API_KEY}
+            }
         });
 
-        return response.text();
+        // Парсинг ответа
+        if (response.data.candidates && response.data.candidates.length > 0) {
+            return response.data.candidates[0].content.parts[0].text;
+        } else {
+            throw new Error("API жауабы бос.");
+        }
 
     } catch (error) {
-        console.error("Google GenAI API қатесі:", error);
+        console.error("Gemini REST API қатесі:", error.response ? error.response.data : error.message);
         throw new Error("AI қызметімен байланысу кезінде қате пайда болды.");
     }
 }
@@ -226,4 +236,4 @@ bot.on('text', async (ctx) => {
 });
 
 bot.launch();
-console.log("✅ Telegram AI-бот @google/genai SDK арқылы іске қосылды!");
+console.log("✅ Telegram AI-бот REST API арқылы іске қосылды!");
