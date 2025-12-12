@@ -1,88 +1,30 @@
-// require('dotenv').config();
-// const { Telegraf } = require('telegraf');
-// const fs = require('fs');
-// const axios = require('axios');
-
-// const bot = new Telegraf(process.env.BOT_TOKEN);
-// const templates = JSON.parse(fs.readFileSync('templates.json', 'utf-8'));
-
-// function findAnswer(msg) {
-//   const lower = msg.toLowerCase();
-//   for (const t of templates) {
-//     if (lower.includes(t.key.toLowerCase())) {
-//       return t.value;
-//     }
-//   }
-//   return null; // егер табылмаса
-// }
-
-// async function askGPT(question) {
-//   const res = await axios.post(
-//     'https://api.openai.com/v1/chat/completions',
-//     {
-//       model: 'gpt-3.5-turbo',
-//       messages: [
-//         { role: 'system', content: 'Сен университет туралы ақпарат беретін көмекші ботсың.' },
-//         { role: 'user', content: question }
-//       ]
-//     },
-//     {
-//       headers: {
-//         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-//         'Content-Type': 'application/json'
-//       }
-//     }
-//   );
-//   return res.data.choices[0].message.content.trim();
-// }
-
-// bot.start((ctx) => ctx.reply("Сәлем! Мен университет туралы сұрақтарға жауап берем."));
-// bot.help((ctx) => ctx.reply("Сұрақ қой: Құжаттар қандай? Грант бар ма? т.с.с."));
-// bot.on('text', async (ctx) => {
-//   const userText = ctx.message.text;
-//   const answer = findAnswer(userText);
-
-//   if (answer) {
-//     ctx.reply(answer);
-//   } else {
-//     ctx.reply("*** Мен бұл сұраққа жауап бере алмаймын, өйткені онда 'Халел Досмұхамедов атындағы Атырау университеті' КЕАҚ туралы нақты ақпарат жоқ *** Я не могу ответить на этот вопрос, так как он не содержит конкретной информации о НАО 'Атырауский университет имени Халела Досмухамедова' ***");
-//     try {
-//       const aiAnswer = await askGPT(userText);
-//       ctx.reply(aiAnswer);
-//     } catch (err) {
-//       ctx.reply("*** Сұрағыңызды қайталаңыз немесе қосымша мәліметтер беріңіз ***  Пожалуйста, перефразируйте свой вопрос или предоставьте больше деталей ***");
-//       console.error(err);
-//     }
-//   }
-// });
-
-// bot.launch();
-// console.log("✅ Telegram AI-бот іске қосылды");
-
 require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
-const axios = require('axios');
+// Импортируем новый пакет @google/genai
+const { GenAI } = require('@google/genai');
 
 // --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 const KNOWLEDGE_FILE = 'system.txt';
 
-// --- Тұрақтылар ---
-const SITE_URL = 'https://asu.edu.kz'; 
+// --- Константы ---
 const APP_NAME = 'Atyrau University AI Bot'; 
 
-if (!BOT_TOKEN || !OPENROUTER_API_KEY) {
-    console.error("Қате: BOT_TOKEN немесе OPENROUTER_API_KEY .env файлында көрсетілмеген.");
+if (!BOT_TOKEN || !GEMINI_API_KEY) {
+    console.error("Қате: BOT_TOKEN немесе GEMINI_API_KEY .env файлында көрсетілмеген.");
     process.exit(1);
 }
 
 const bot = new Telegraf(BOT_TOKEN);
 
+// --- Инициализация Google AI ---
+const client = new GenAI({ apiKey: GEMINI_API_KEY });
+
 // --- Пайдаланушы тілі мен контекстін сақтау ---
 const userLanguage = new Map();
-const userContext = new Map();
+const userContext = new Map(); 
 
 // --- Білім базасын оқу ---
 let knowledgeBase = '';
@@ -94,9 +36,10 @@ try {
     process.exit(1);
 }
 
-// --- OpenRouter API (Gemini арқылы) ---
-async function askOpenRouter(question, lang = 'kk') {
-    const systemPrompt = `
+// --- AI Функция (пакет @google/genai) ---
+async function askGemini(question, lang = 'kk') {
+    // Формируем системную инструкцию
+    const systemInstructionText = `
 Сен — Халел Досмұхамедов атындағы Атырау университетінің студенттеріне көмектесетін AI-ассистентсің.
 Сен тек төменде берілген база знаний негізінде жауап бер.
 Өзіңнен ештеңе қоспа. Егер жауап базада жоқ болса, "${lang === 'kk' ? 'Кешіріңіз, бұл сұрақ бойынша менде нақты ақпарат жоқ' : lang === 'ru' ? 'Извините, информации по этому вопросу нет' : 'Sorry, I don’t have information on that'}" деп жауап бер.
@@ -107,40 +50,29 @@ ${knowledgeBase}
 --- БАЗА ЗНАНИЙ СОҢЫ ---
 `;
 
-    const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-    
-    // OpenRouter (OpenAI Compatible) Payload
-    const payload = {
-        model: "google/gemini-2.0-flash-exp:free", // Модель атауы
-        messages: [
-            {
-                role: "system",
-                content: systemPrompt
-            },
-            {
-                role: "user",
-                content: question
-            }
-        ],
-        temperature: 0.3, 
-    };
-
     try {
-        const response = await axios.post(API_URL, payload, {
-            headers: { 
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': SITE_URL, 
-                'X-Title': APP_NAME,     
-            }
+        const response = await client.models.generateContent({
+            model: "gemini-2.0-flash",
+            config: {
+                systemInstruction: {
+                    parts: [{ text: systemInstructionText }]
+                },
+                temperature: 0.3,
+            },
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: question }
+                    ]
+                }
+            ]
         });
 
-        if (response.data.choices && response.data.choices.length > 0) {
-            return response.data.choices[0].message.content.trim();
-        }
-        throw new Error("API жауабында мазмұн табылмады.");
+        return response.text();
+
     } catch (error) {
-        console.error("OpenRouter API қатесі:", error.response ? error.response.data : error.message);
+        console.error("Google GenAI API қатесі:", error);
         throw new Error("AI қызметімен байланысу кезінде қате пайда болды.");
     }
 }
@@ -275,7 +207,7 @@ bot.on('text', async (ctx) => {
         const waitMsg = await ctx.reply(lang === 'kk' ? "Ойланудамын... 🧠" : lang === 'ru' ? "Думаю... 🧠" : "Thinking... 🧠");
 
         try {
-            const answer = await askOpenRouter(text, lang);
+            const answer = await askGemini(text, lang);
             await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, null, answer);
         } catch (error) {
             console.error(error); // Қатені сервер консоліне шығару
@@ -294,4 +226,4 @@ bot.on('text', async (ctx) => {
 });
 
 bot.launch();
-console.log("✅ Telegram AI-бот OpenRouter арқылы іске қосылды!");
+console.log("✅ Telegram AI-бот @google/genai SDK арқылы іске қосылды!");
