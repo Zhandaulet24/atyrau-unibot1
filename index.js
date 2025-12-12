@@ -69,7 +69,7 @@ ${knowledgeBase}
     try {
         const response = await axios.post(url, payload, {
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
                 'x-goog-api-key': ${GEMINI_API_KEY}
             }
         });
