@@ -70,7 +70,7 @@ ${knowledgeBase}
         const response = await axios.post(url, payload, {
             headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': ${GEMINI_API_KEY}
+                'x-goog-api-key': GEMINI_API_KEY
             }
         });
 
