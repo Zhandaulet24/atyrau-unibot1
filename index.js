@@ -10,7 +10,7 @@ const KNOWLEDGE_FILE = 'system.txt';
 
 // --- Константы ---
 const APP_NAME = 'Atyrau University AI Bot'; 
-const MODEL_NAME = 'gemini-2.5-flash-native-audio-dialog'; 
+const MODEL_NAME = 'gemini-robotics-er-1.5-preview'; 
 
 if (!BOT_TOKEN || !GEMINI_API_KEY) {
     console.error("Қате: BOT_TOKEN немесе GEMINI_API_KEY .env файлында көрсетілмеген.");
