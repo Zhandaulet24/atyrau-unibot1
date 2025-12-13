@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
-const axios = require('axios'); // Используем axios для REST запросов
+const axios = require('axios'); 
 
 // --- Конфигурация ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -54,7 +54,6 @@ ${knowledgeBase}
         systemInstruction: {
             parts: [{ text: systemInstructionText }]
         },
-        // Сообщение пользователя
         contents: [
             {
                 role: "user",
@@ -218,7 +217,7 @@ bot.on('text', async (ctx) => {
 
         try {
             const answer = await askGemini(text, lang);
-            await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, null, answer);
+            await ctx.telegram.editMessageText(ctx.chat.id, waitMsg.message_id, null, answer, { parse_mode: 'Markdown' });
         } catch (error) {
             console.error(error); // Қатені сервер консоліне шығару
             await ctx.telegram.editMessageText(
