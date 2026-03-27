@@ -1,13 +1,16 @@
 {
-  "name": "atyrau-unibot",
+  "name": "atyrau-university-bot",
   "version": "1.0.0",
+  "description": "Telegram AI-ассистент для Атырауского университета с использованием Groq API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.10.0",
-    "dotenv": "^16.0.3",
-    "telegraf": "^4.12.2"
-  }
+    "dotenv": "^16.4.5",
+    "groq-sdk": "^0.3.3",
+    "telegraf": "^4.16.3"
+  },
+  "author": "",
+  "license": "ISC"
 }
